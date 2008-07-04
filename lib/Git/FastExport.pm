@@ -5,7 +5,7 @@ use Carp;
 use Cwd;
 use IPC::Open2;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 sub new {
     my ( $class, $repo ) = @_;
@@ -34,7 +34,12 @@ sub next_block {
     my $block = bless {}, 'Git::FastExport::Block';
     my $fh = $self->{export_fh};
 
-    return if eof $fh;
+    if ( eof $fh ) {
+        $self->{git}->command_close_pipe( $fh, $self->{ctx} )
+            if $self->{git} && $self->{ctx};
+        delete @{$self}{qw( export_fh ctx )};
+        return;
+    }
 
     # use the header from last time, or read it (first time)
     $block->{header} = $self->{header} ||= <$fh>;
@@ -132,7 +137,7 @@ Git::FastExport - A module to parse the output of git-fast-export
     my $repo = Git->repository( Repository => $path );
     my $export = Git::FastExport->new($repo);
 
-    while ( my $block = $parser->next_block() ) {
+    while ( my $block = $export->next_block() ) {
 
         # do something with $block
 
