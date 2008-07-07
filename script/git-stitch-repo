@@ -3,14 +3,16 @@ use strict;
 use warnings;
 use Git;
 use Git::FastExport;
+use File::Spec::Functions qw( rel2abs );
 
-our $VERSION = 0.02;
+our $VERSION = 0.03;
 
 my %repo;
 
 # process command-line parameters
 while (@ARGV) {
     my ( $repo, $dir ) = split /:/, shift @ARGV, 2;
+    $repo = rel2abs( $repo );
     $dir ||= '';
 
     # create an export parser for each repo
@@ -99,7 +101,7 @@ while (@repos) {
 
     # update the parents information
     for my $parent ( map { $parent_map{$_} } @parents ) {
-        push @{ $commits{$parent}{children} }, $node;
+        push @{ $commits{$parent}{children} }, $node->{name};
     }
 
     # dump the commit
@@ -149,21 +151,23 @@ sub last_alien_child {
         return $node if ( !@{ $node->{children} } );
 
         # some children nodes are local
-        return $node if grep { $_->{repo} eq $repo } @{ $node->{children} };
+        return $node
+            if grep { $commits{$_}->{repo} eq $repo } @{ $node->{children} };
 
         # there's a child in the same branch
         if ( my ($peer)
-            = grep { $_->{branch} eq $branch } @{ $node->{children} } )
+            = grep { $commits{$_}->{branch} eq $branch }
+            @{ $node->{children} } )
         {
+
             # but don't go past another repo's merges
-            return $node if $peer->{merge};
-            $node = $peer;
+            return $node if $commits{$peer}->{merge};
+            $node = $commits{$peer};
         }
 
         # or pick the first child (as good as any)
         else {
-
-            $node = $node->{children}[0];
+            $node = $commits{ $node->{children}[0] };
         }
     }
 }
@@ -203,6 +207,7 @@ Repository A:
 Branch I<master> points to A5 and branch I<topic> points to A3.
 
 Repository B:
+
                  ,topic    ,master
            B3---B5---B7---B8
           /         /
