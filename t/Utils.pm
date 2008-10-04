@@ -4,10 +4,14 @@ use File::Path;
 use File::Spec;
 use Cwd;
 use Git;
+use Error qw( :try );
 
 # some data for the file content
 my @data = <DATA>;
-my $idx = 0;
+my $idx  = 0;
+
+# Git.pm options for silencing git
+my $gitopts = { STDERR => '' };
 
 1;
 
@@ -22,7 +26,10 @@ sub new_repo {
     chdir $wc;
     `git-init`;
     chdir $cwd;
-    return Git->repository( Directory => $wc );
+    my $repo = Git->repository( Directory => $wc );
+    $repo->command( [qw( config user.email test@example.com )], $gitopts );
+    $repo->command( [qw( config user.name  Test )],             $gitopts );
+    return $repo;
 }
 
 # produce a text description of a given repository
@@ -51,6 +58,18 @@ sub repo_description {
     return $desc;
 }
 
+# split a description into descriptions of independent repositories
+sub split_description {
+    my ($desc) = @_;
+    my %desc;
+
+    for my $node ( split / /, $desc ) {
+        my ($repo) = $node =~ /^([A-Z]+)/;
+        push @{ $desc{$repo} }, $node;
+    }
+    return map { join ' ', @$_ } values %desc;
+}
+
 # create a set of repositories from a given description
 sub create_repos {
     my ( $dir, $desc, $refs ) = @_;
@@ -58,8 +77,8 @@ sub create_repos {
 
     for my $commit ( split / /, $desc ) {
         my ( $child, $parent ) = split /-/, $commit;
-        my @child = $child =~ /([A-Z]\d+)/g;
-        my @parent = $parent =~ /([A-Z]\d+)/g if $parent;
+        my @child = $child =~ /([A-Z]+\d+)/g;
+        my @parent = $parent =~ /([A-Z]+\d+)/g if $parent;
 
         die "bad node description" if @child > 1 && @parent > 1;
 
@@ -75,18 +94,32 @@ sub create_repos {
         sleep 1;
     }
 
+    # checkout a new dummy branch in each repo
+    for my $repo ( values %{ $info->{repo} } ) {
+        $repo->command( [ 'checkout', '-b', 'dummy' ], $gitopts );
+    }
+
     # setup the refs (branches & tags)
     for my $ref ( split / /, $refs ) {
         my ( $name, $type, $commit ) = split /([>=])/, $ref;
-        my $repo = $info->{repo}{ substr( $commit, 0, 1 ) };
-        if ( $type eq '=' ) {      # branch
-            $repo->command( 'branch', '-D', $name )
+        my ($repo_name) = $commit =~ /^([A-Z]+)/;
+        my $repo = $info->{repo}{$repo_name};
+        if ( $type eq '=' ) {    # branch
+            $repo->command( [ branch => '-D', $name ], $gitopts )
                 if grep {/^..$name$/} $repo->command('branch');
-            $repo->command( 'branch', $name, $info->{sha1}{$commit} );
+            $repo->command( [ branch => $name, $info->{sha1}{$commit} ],
+                $gitopts );
         }
-        else {                     # tag
-            $repo->command( 'tag', $name, $info->{sha1}{$commit} );
+        else {                   # tag
+            $repo->command( [ tag => $name, $info->{sha1}{$commit} ],
+                $gitopts );
         }
+    }
+
+    # delete the dummy branch and checkout master in each repo
+    for my $repo ( values %{ $info->{repo} } ) {
+        $repo->command( [ 'checkout', 'master' ], $gitopts );
+        $repo->command( [ branch => '-D', 'dummy' ], $gitopts );
     }
 
     # return the repository objects
@@ -95,7 +128,7 @@ sub create_repos {
 
 sub create_linear_commit {
     my ( $info, $child, $parent ) = @_;
-    my $name = substr( $child, 0, 1 );
+    my ($name) = $child =~ /^([A-Z]+)/g;
 
     # create the repo if needed
     my $repo = $info->{repo}{$name};
@@ -115,7 +148,7 @@ sub create_linear_commit {
 
 sub create_merge_commit {
     my ( $info, $child, @parents ) = @_;
-    my $name = substr( $child, 0, 1 );
+    my ($name) = $child =~ /^([A-Z]+)/g;
     my $repo = $info->{repo}{$name};
 
     # checkout the first parent
@@ -123,18 +156,18 @@ sub create_merge_commit {
     $repo->command( 'checkout', '-q', $info->{sha1}{$parent} );
 
     # merge the other parents
-    eval {
+    try {
         $repo->command_noisy( 'merge', '-n',
             map { $info->{sha1}{$_} } @parents,
         );
-        1;
-        }
-        or do {
+    }
+    otherwise {
         my $base = File::Spec->catfile( $info->{dir}, $name );
         update_file( $base, $name );
         $repo->command( 'add', $name );
         $repo->command( 'commit', '-m', $child );
-        };
+    };
+
     $info->{sha1}{$child}
         = $repo->command_oneline(qw( log -n 1 --pretty=format:%H HEAD ));
 }
