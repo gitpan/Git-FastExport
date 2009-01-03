@@ -1,9 +1,9 @@
 use strict;
 use warnings;
 use Test::More;
-use IPC::Open2;
 use File::Path;
 use t::Utils;
+use Git::FastExport::Stitch;
 
 # first, make sure we have the right git version
 use Git;
@@ -91,6 +91,19 @@ my @tests = (
         'A1 B1-A1 C1-B1 A2-C1 B2-A2 C2-B2 A3-C1 B3-A2 C3-B2 A4-B3A3 B4-C3A4 C4-C2B4',
         'A1 B1-A1 C1-B1 A2-C1 B2-A2 C2-B2 A3-C1 B3-A2 C3-B2 A4-C2A3 B4-A4B3 C4-B4C3',
     ],
+
+    # 3-way merges
+    # 13-15
+    [   'A1 A2-A1 A3-A1 A4-A1 A5-A4A3A2',
+        'master=A5',
+        'A1 A2-A1 A3-A1 A4-A1 A5-A4A3A2',
+        'A1 A2-A1 A3-A1 A4-A1 A5-A4A3A2',
+    ],
+    [   'A1 B1 A2-A1 A3-A1 B2-B1 A4-A1 B3-B1 A5-A4A3A2 B4-B2B3',
+        'master=A5 master=B4',
+        'A1 B1-A1 A2-B1 A3-B1 B2-A3 A4-B1 B3-A3 A5-A4B3A2 B4-B2A5',
+        'A1 B1-A1 A2-B1 A3-B1 B2-A2 A4-B1 B3-A2 A5-A4A3B2 B4-A5B3',
+    ],
 );
 
 # algorithms to test
@@ -105,6 +118,9 @@ plan tests => @nums * @algo;
 
 # the program we want to test
 my $gsr = File::Spec->rel2abs('script/git-stitch-repo');
+
+# a counter
+my $j = 0;
 
 for my $n (@nums) {
     my ( $src, $refs, @todo ) = @{ $tests[$n] };
@@ -149,20 +165,37 @@ for my $n (@nums) {
         # create the destination repository
         my $repo = new_repo( $dir => "RESULT-$algo[$i]" );
 
-        # run git-stitch-repo on the source repositories
-        my ( $in, $out );
-        my $pid
-            = open2( $out, $in, $^X, "-Mblib", $gsr, '--select', $algo[$i],
-            map { $_->wc_path } @src );
+        # run the stitch algorithm on the source repositories
+        my $export = Git::FastExport::Stitch->new( { select => $algo[$i] } );
+
+        # try all possible parameters to stitch()
+        for my $src (@src) {
+            my $r;
+            if ( $j == 0 ) {
+                $r = $src->wc_path;    # a string
+            }
+            elsif ( $j == 1 ) {
+                $r = $src;             # a Git object
+            }
+            elsif ( $j == 2 ) {
+                $r = Git::FastExport->new($src);    # a Git::FastExport
+            }
+            elsif ( $j == 3 ) {
+                $r = Git::FastExport->new($src);             # an initialized
+                $r->fast_export(qw( --all --date-order ));   # Git::FastExport
+            }
+            $export->stitch($r);
+            $j = ++$j % 4;
+        }
 
         # run git-fast-import on the destination repository
         my ( $fh, $c )
             = $repo->command_input_pipe( 'fast-import', '--quiet' );
 
         # pipe the output of git-stitch-repo into git-fast-import
-        while (<$out>) {
-            next if /^progress /;    # ignore progress info
-            print {$fh} $_;
+        while ( my $block = $export->next_block() ) {
+            next if $block->{type} eq 'progress';    # ignore progress info
+            print {$fh} $block->as_string();
         }
         $repo->command_close_pipe( $fh, $c );
 

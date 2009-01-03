@@ -15,6 +15,27 @@ my $gitopts = { STDERR => '' };
 
 1;
 
+sub description_of {
+
+    # interpolate with comma's in this scope
+    local $" = ', ';
+
+    # silence screaming about undefined values
+    no warnings 'uninitialized';
+
+    my @desc;
+    for my $v (@_) {
+        push @desc,
+            !defined $v ? '<undef>'
+            : $v     eq ''      ? "''"
+            : ref $v eq 'ARRAY' ? "[ @$v ]"
+            : ref $v eq 'HASH'  ? "{ @{[map{qq'$_ => $v->{$_}'}sort keys%$v]} }"
+            : $v;
+    }
+
+    return "@desc";
+}
+
 # create a new, empty repository
 sub new_repo {
     my ( $dir, $name ) = @_;
@@ -24,7 +45,7 @@ sub new_repo {
     my $wc = File::Spec->rel2abs( File::Spec->catfile( $dir, $name ) );
     mkpath $wc;
     chdir $wc;
-    `git-init`;
+    `git init`;
     chdir $cwd;
     my $repo = Git->repository( Directory => $wc );
     $repo->command( [qw( config user.email test@example.com )], $gitopts );
@@ -156,17 +177,9 @@ sub create_merge_commit {
     $repo->command( 'checkout', '-q', $info->{sha1}{$parent} );
 
     # merge the other parents
-    try {
-        $repo->command_noisy( 'merge', '-n',
-            map { $info->{sha1}{$_} } @parents,
-        );
-    }
-    otherwise {
-        my $base = File::Spec->catfile( $info->{dir}, $name );
-        update_file( $base, $name );
-        $repo->command( 'add', $name );
-        $repo->command( 'commit', '-m', $child );
-    };
+    $repo->command_noisy( 'merge', '-n', '-s', 'ours', '-m', $child,
+        map { $info->{sha1}{$_} } @parents,
+    );
 
     $info->{sha1}{$child}
         = $repo->command_oneline(qw( log -n 1 --pretty=format:%H HEAD ));

@@ -3,235 +3,34 @@ use strict;
 use warnings;
 use Pod::Usage;
 use Getopt::Long;
-use Git;
-use Git::FastExport;
+use Git::FastExport::Stitch;
 use File::Spec::Functions qw( rel2abs );
 
-our $VERSION = $Git::FastExport::VERSION;
+our $VERSION = $Git::FastExport::Stitch::VERSION;
 
 # basic command-line options
-my %option = ( select => 'last' );
+my %option;
 GetOptions( \%option, 'help', 'manual', 'version', 'select=s' )
     or pod2usage( -verbose => 0 );
 print "git-stitch-repo version $VERSION\n" and exit if $option{version};
 pod2usage( -verbose => 1 ) if $option{help};
 pod2usage( -verbose => 2 ) if $option{manual};
-pod2usage(
-    -message => "Invalid selection algorithm: $option{select}\n",
-    -verbose => 1
-) if $option{select} !~ /^(?:first|last|random)$/;
 
-my %repo;
+my $export = Git::FastExport::Stitch->new( \%option );
 
 # process command-line parameters
-my $name = 'A';
 while (@ARGV) {
     my ( $repo, $dir ) = split /:/, shift @ARGV, 2;
     $repo = rel2abs($repo);
     $dir ||= '';
 
-    # create an export parser for each repo
-    my $parser
-        = Git::FastExport->new( Git->repository( Directory => $repo ) );
-    $parser->fast_export(qw( --progress=1 --all --date-order ));
-    $parser->{mapdir} = $dir;
-
-    # update the %repo hash
-    $repo                = $parser->{source};
-    $repo{$repo}{repo}   = $repo;
-    $repo{$repo}{dir}    = $dir;
-    $repo{$repo}{parser} = $parser;
-    $repo{$repo}{name}   = $dir || $name;
-    $name++;
+    # add the repository to the list of repositories to stitch
+    $export->stitch( $repo => $dir );
 }
 
-# repositories that we will process
-my @repos = values %repo;
-
-my $mark = 1_000_000;    # mark counter in the new repo
-my %mark_map;            # map marks in source repos to marks in the new repo
-
-# get the first commits
-$_->{commit} = next_commit( $_->{parser} ) for @repos;
-
-# main loop
-my $last;
-my %commits;
-while (@repos) {
-
-    # sort by date
-    @repos = sort { $a->{commit}{date} <=> $b->{commit}{date} } @repos;
-    my $repo = $repos[0];
-
-    # next commit to dump
-    my $commit = $repo->{commit};
-
-    # update marks & dir in files
-    for ( @{ $commit->{files} } ) {
-        s/^M (\d+) :(\d+)/M $1 :$mark_map{$repo->{repo}}{$2}/;
-        if ( my $dir = $repo->{dir} ) {
-            s!^(M \d+ :\d+) (.*)!$1 $dir/$2!;    # filemodify
-            s!^D (.*)!D $dir/$1!;                # filedelete
-
-            # /!\ quotes may happen - die and fix if needed
-            die "Choked on quoted paths in $repo->{repo}! Culprit:\n$_\n"
-                if /^[CR] \S+ \S+ /;
-
-            # filecopy | filerename
-            s!^([CR]) (\S+) (\S+)!$1 $dir/$2 $dir/$3!;
-        }
-    }
-
-    # first commit in the old repo linked to latest commit in new repo
-    if ( $last && !$commit->{from} ) {
-        $commit->{from} = ["from :$last"];
-    }
-
-    # update historical information
-    my ($id) = $commit->{mark}[0] =~ /:(\d+)/g;
-    $last = $id;    # last commit applied
-    my $branch = ( split / /, $commit->{header} )[1];
-    my $node = $commits{$id} = {
-        name     => $id,
-        repo     => $repo->{repo},
-        branch   => $branch,
-        children => [],
-        parents  => {},
-        merge    => exists $commit->{merge},
-    };
-
-    # mark our original source
-    $commit->{header} =~ s/$/-$repo->{name}/;
-
-    # this commit's parents
-    my @parents = map {/:(\d+)/g} @{ $commit->{from} || [] },
-        @{ $commit->{merge} || [] };
-
-    # get the reference parent list used by last_alien_child()
-    my $parents = {};
-    for my $parent (@parents) {
-        for my $repo ( keys %{ $commits{$parent}{parents} } ) {
-            $parents->{$repo}{$_} = 1
-                for keys %{ $commits{$parent}{parents}{$repo} };
-        }
-    }
-
-    # map each parent to its last "alien" commit
-    my %parent_map = map {
-        $_ => last_alien_child( $commits{$_}, $branch, $parents )->{name}
-    } @parents;
-
-    # map parent marks
-    for ( @{ $commit->{from} || [] }, @{ $commit->{merge} || [] } ) {
-        if (m/^(from|merge) /) {
-            s/:(\d+)/:$parent_map{$1}/g;
-        }
-    }
-
-    # update the parents information
-    add_parents( $node => map { $commits{ $parent_map{$_} } } @parents );
-
-    # dump the commit
-    print $commit->as_string;
-
-    # load next commit
-    $repo->{commit} = next_commit( $repo->{parser} )
-        or shift @repos;    # no more blocks in this export
-}
-
-# return the next commit
-# - print out the intermediate blocks
-# - offset the old marks
-sub next_commit {
-    my ($parser) = @_;
-    my $block;
-
-    while ( $block = $parser->next_block() ) {
-
-        # map to the new mark
-        for ( @{ $block->{mark} || [] } ) {
-            s/:(\d+)/:$mark/
-                and $mark_map{ $parser->{source} }{$1} = $mark++;
-        }
-
-        # update marks in from & merge
-        for ( @{ $block->{from} || [] }, @{ $block->{merge} || [] } ) {
-            if (m/^(from|merge) /) {
-                s/:(\d+)/:$mark_map{$parser->{source}}{$1}/g;
-            }
-        }
-        last if $block->{type} eq 'commit';
-        print $block->as_string();
-    }
-    return $block;
-}
-
-# given a commit (item from %commits)
-# add the parents from the given commits to it
-sub add_parents {
-    my ( $node, @parents ) = @_;
-
-    for my $parent (@parents) {
-        push @{ $parent->{children} }, $node->{name};
-        for my $repo_name ( keys %{ $parent->{parents} } ) {
-            $node->{parents}{$repo_name}{$_} = 1
-                for keys %{ $parent->{parents}{$repo_name} || {} };
-        }
-        $node->{parents}{ $parent->{repo} }{ $parent->{name} } = 1;
-    }
-
-    return $node;
-}
-
-# find the last child of this node
-# that has either no child
-# or a child in our repo
-# or an alien child that has the same parent list
-my %select;
-
-sub last_alien_child {
-    my ( $node, $branch, $parents ) = @_;
-    my $from = $node->{name};
-    my $repo = $node->{repo};
-    my $old  = '';
-
-    while ( $node ne $old ) {
-        $old = $node;
-
-        # no children nodes
-        return $node if ( !@{ $node->{children} } );
-
-        # some children nodes are local
-        return $node
-            if grep { $commits{$_}{repo} eq $repo } @{ $node->{children} };
-
-        # all children are alien to us
-        my @valid;
-        for my $id ( @{ $node->{children} } ) {
-
-            my $peer = $commits{$id};
-
-            # parents of $peer in $peer's repo contains
-            # all parents from $parent in $peer's repo
-            next
-                if grep { !exists $peer->{parents}{ $peer->{repo} }{$_} }
-                    keys %{ $parents->{ $peer->{repo} } };
-
-            # this child node has a valid parent list
-            push @valid, $id;
-        }
-
-        # compute the commit to attach to, using the request algorithm
-        my $node_id = $select{"$from $node->{name}"} ||=
-              $option{select} eq 'last'  ? $valid[-1]
-            : $option{select} eq 'first' ? $valid[0]
-            : $valid[ rand @valid ]
-            if @valid;
-        $node = $commits{$node_id};
-    }
-
-    # return last valid child
-    return $node;
+# run the stitching algorithm
+while ( my $block = $export->next_block() ) {
+    print $block->as_string;
 }
 
 __END__
@@ -292,161 +91,9 @@ repositories, and produced the expected result.
 The improvements to the stitching algorithm added in version 0.06 should
 make is suitable to work with repositories having branches and merges.
 
-=head2 Commit attachement algorithm
+=head1 SEE ALSO
 
-B<git-stitch-repo> processes the input commits in B<--date-order>
-fashion, and build a graph by attaching the new commit to another
-commit of the graph being constructed. It starts from the "original"
-parents of the node, and tries do follow the graph as far as possible.
-
-When a commit has several suitable child commits, it needs to make a
-selection. There are currently three selection algorithms:
-
-=over 4
-
-=item last
-
-Pick the last child commit, i.e. the most recent one.
-This is the default.
-
-=item first
-
-Pick the first child commit, i.e. the oldest one.
-
-=item random
-
-Pick a random child.
-
-=back
-
-=head2 Example
-
-Imagine we have two repositories A and B that we want to stitch into
-a repository C so that all the files from A are in subdirectory F<A>
-and all the files from B are in subdirectory F<B>.
-
-Note: in the following ASCII art graphs, horizontal order is chronological.
-
-Repository A:
-
-             ,topic      ,master
-          ,-A3------A5--A6
-         /         /
-    A1--A2------A4'
-
-Branch I<master> points to A5 and branch I<topic> points to A3.
-
-Repository B:
-
-                     ,topic  ,master
-          ,-B3------B5------B7--B8
-         /                 /
-    B1--B2------B4------B6'
-
-Branch I<master> points to B8 and branch I<topic> points to B5.
-
-The RESULT repository should preserve chronology, commit relationships and
-branches as much as possible, while giving the impression that the
-directories F<A/> & F<B/> did live side-by-side all the time.
-
-Assuming additional timestamps not shown on the above graphs
-(the commit order is A1, B1, A2, B2, A3, A4, B3, B4, A5, B5, B6, B7, B8, A6),
-B<git-stitch-repo> will produce a B<git-fast-import> stream that will
-create the following history, depending on the value of B<--select>:
-
-=over 4
-
-=item I<last> (default)
-
-                                         ,topic-B
-                          ,-B3----------B5----.
-                         /                     \      ,master-B
-    A1--B1--A2--B2------A4------B4--A5------B6--B7---B8--A6
-                 \                 /                      `master-A
-                  `-A3------------'
-                     `topic-A
-
-=item I<first>
-
-                      ,---------B4----------B6-.
-                     /       ,topic-A           \     ,master-B
-    A1--B1--A2--B2--A3------B3------A5--B5------B7---B8--A6
-                 \                 /     `topic-B         `master-A
-                  `-----A4--------'
-
-=item I<random>
-
-In this example, there are only two places where the selection process
-is triggered, and there are only two items to choose from each time.
-Therefore the I<random> selection algorithm will produce 4 possible
-different results.
-
-In addition to the results shown above (C<last+last> and C<first+first>),
-we can also obtain the two following graphs:
-
-C<first+last>:
-
-                     ,topic-A                         ,master-B
-    A1--B1--A2--B2--A3--------------A5------B6--B7---B8--A6
-                 \                 /           /          `master-A
-                  `-----A4------B4'     B5----'
-                         \             / `topic-B
-                          `-B3--------'
-
-C<last+first>:
-
-                                                      ,master-B
-    A1--B1--A2--B2------A4------B4----------B6--B7---B8--A6
-                 \       \                     /          `master-A
-                  \       `-B3------A5--B5----'
-                   \               /     `topic-B
-                    A3------------'
-                     `topic-A
-
-=back
-
-=head1 ALGORITHM AND CONSTRAINTS
-
-Any mathematician will tell you there are many many ways to stitch two
-DAG together. This programs tries very hard not to create inconsistent
-history with regard to each input repository.
-
-The algorithm used by B<git-stitch-repo> enforce the following rules
-when building the resulting repository:
-
-=over 4
-
-=item *
-
-a commit is attached as far as possible in the DAG, starting from the
-original parent
-
-
-=item *
-
-a commit is only attached to another commit in the resulting repository
-that has B<exactly> the same ancestors list as the original parent
-commits.
-
-=item *
-
-when there are several valid branches to follow when trying to find 
-a commit to attach to, use the selection process (last or first commit
-(at the time of attachement), or random commit)
-
-=item *
-
-branches starting from the same commit in a source repository will start
-from the same commit in the resulting repository (this particular rule
-can be lifted: adding an option for this in on the TODO list)
-
-=back
-
-=head1 BUGS & IMPROVEMENTS
-
-The current implementation can probably be improved, and more options
-added. I'm very interested in test repositories that do not give the
-expected results.
+L<Git::FastExport::Stitch>
 
 =head1 AUTHOR
 
@@ -460,7 +107,7 @@ under the same terms as Perl itself.
 
 =head1 COPYRIGHT
 
-Copyright 2008 Philippe Bruhat (BooK), All Rights Reserved.
+Copyright 2008-2009 Philippe Bruhat (BooK), All Rights Reserved.
 
 =head1 LICENSE
 

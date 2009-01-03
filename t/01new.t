@@ -8,7 +8,7 @@ my $dir = tempdir( CLEANUP => 1 );
 
 # alas, this can't be done with Git.pm
 chdir $dir;
-`git-init`;
+`git init`;
 
 my $git = Git->repository( Directory => $dir );
 
@@ -17,13 +17,17 @@ my @tests = (
     # desc, args
     [''],
     [ "Git->new( Directory => $dir )", $git ],
+    [ $dir, $dir ],
 );
 
 my @fails = (
 
     # desc, error, regex, args
-    [ q('zlonk'), qr/^zlonk is not a Git object/, 'zlonk' ],
+    [ q('zlonk'), qr/^zlonk is not a valid git repository/, 'zlonk' ],
     [ q('zlonk'), qr/^Zlonk=HASH\S+ is not a Git object/, bless {}, 'Zlonk' ],
+
+    # [q(''), ''], # should fail (Git.pm issue)
+    # [q(0), 0],   # should fail (Git.pm issue)
 );
 
 plan tests => 3 * @tests + 3 * @fails;

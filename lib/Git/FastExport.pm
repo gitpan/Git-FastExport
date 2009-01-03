@@ -2,12 +2,11 @@ package Git::FastExport;
 use strict;
 use warnings;
 use Carp;
-use Cwd;
-use IPC::Open2;
 
+use Git;
 use Git::FastExport::Block;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 'progress 1 objects';
 
@@ -15,9 +14,15 @@ sub new {
     my ( $class, $repo ) = @_;
     my $self = bless { source => '' }, $class;
 
-    if ($repo) {
-        croak "$repo is not a Git object"
-            if !( ref $repo && $repo->isa('Git') );
+    if ( defined $repo ) {
+        if ( !ref $repo ) {
+            my $dir = $repo;
+            $repo = eval { Git->repository( Directory => $dir ) }
+                or croak "$dir is not a valid git repository";
+        }
+        elsif ( !$repo->isa('Git') ) {
+            croak "$repo is not a Git object";
+        }
         $self->{git} = $repo;
     }
     return $self;
@@ -130,7 +135,9 @@ This class provides the following methods:
 
 =item new( [ $repository ] )
 
-The constructor takes an optional C<Git> repository object, and returns
+The constructor takes an optional git directory (a string used
+as a parameter to C<< Git->repository( Directory => ... ) >>)
+or C<Git> repository object, and returns
 a C<Git::FastExport> object attached to it.
 
 =item fast_export( @args )
@@ -168,7 +175,7 @@ under the same terms as Perl itself.
 
 =head1 COPYRIGHT
 
-Copyright 2008 Philippe Bruhat (BooK), All Rights Reserved.
+Copyright 2008-2009 Philippe Bruhat (BooK), All Rights Reserved.
 
 =head1 LICENSE
 
