@@ -14,6 +14,8 @@ my %fields = (
     blob       => [qw( mark data )],
     checkpoint => [],
     progress   => [],
+    feature    => [],
+    option     => [],
 );
 
 'progress 1 objects';
@@ -126,7 +128,7 @@ Return the block as a string suitable for B<git-fast-import>.
 
 =head1 AUTHOR
 
-Philippe Bruhat (BooK)
+Philippe Bruhat (BooK), C<< <book@cpan.org> >>.
 
 =head1 ACKNOWLEDGEMENTS
 

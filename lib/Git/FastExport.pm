@@ -6,7 +6,7 @@ use Carp;
 use Git;
 use Git::FastExport::Block;
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 'progress 1 objects';
 
@@ -59,7 +59,7 @@ sub next_block {
     while (<$fh>) {
 
         # we've reached the beginning of the next block
-        if (/^(commit|tag|reset|blob|checkpoint|progress)\b/) {
+        if (/^(commit|tag|reset|blob|checkpoint|progress|feature|option)\b/) {
             s/^progress /progress [$self->{source}] /;
             $self->{header} = $_;
             last;
@@ -165,7 +165,7 @@ possible to read from STDIN by doing:
 
 =head1 AUTHOR
 
-Philippe Bruhat (BooK)
+Philippe Bruhat (BooK), C<< <book@cpan.org> >>.
 
 =head1 ACKNOWLEDGEMENTS
 

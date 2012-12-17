@@ -95,7 +95,7 @@ sub next_block {
         return $block;
     }
 
-    # select the oldest alvailable commit
+    # select the oldest available commit
     my ($next) = keys %$repo;
     $next
         = $repo->{$next}{block}{date} < $repo->{$_}{block}{date} ? $next : $_
@@ -169,6 +169,10 @@ sub _translate_block {
     # nothing to do
     return if !defined $block;
 
+    # mark our original source
+    $block->{header} =~ s/$/-$self->{repo}{$repo}{name}/
+        if $block->{type} eq 'reset';
+
     # map to the new mark
     for ( @{ $block->{mark} || [] } ) {
         s/:(\d+)/:$self->{mark}/;
@@ -184,15 +188,15 @@ sub _translate_block {
     for ( @{ $block->{files} } ) {
         s/^M (\d+) :(\d+)/M $1 :$mark_map->{$repo}{$2}/;
         if ( my $dir = $self->{repo}{$repo}{dir} ) {
-            s!^(M \d+ :\d+) (.*)!$1 $dir/$2!;    # filemodify
-            s!^D (.*)!D $dir/$1!;                # filedelete
+            s!^(M \d+ :\d+) (\"?)(.*)!$1 $2$dir/$3!;    # filemodify
+            s!^D (\"?)(.*)!D $1$dir/$2!;                # filedelete
 
             # /!\ quotes may happen - die and fix if needed
             die "Choked on quoted paths in $repo! Culprit:\n$_\n"
                 if /^[CR] \S+ \S+ /;
 
             # filecopy | filerename
-            s!^([CR]) (\S+) (\S+)!$1 $dir/$2 $dir/$3!;
+            s!^([CR]) (\"?)(\S+) (\"?)(\S+)!$1 $2$dir/$3 $4$dir/$5!;
         }
     }
 }
@@ -537,7 +541,7 @@ B<git-stitch-repo>
 
 =head1 AUTHOR
 
-Philippe Bruhat (BooK)
+Philippe Bruhat (BooK), C<< <book@cpan.org> >>.
 
 =head1 COPYRIGHT
 
