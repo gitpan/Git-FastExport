@@ -1,30 +1,34 @@
 ---
 abstract: 'A module to parse the output of git-fast-export'
 author:
-  - 'Philippe Bruhat (BooK), C<< <book@cpan.org> >>.'
-build_requires: {}
+  - 'Philippe Bruhat (BooK) <book@cpan.org>'
+build_requires:
+  Cwd: 0
+  File::Find: 0
+  File::Path: 0
+  File::Spec: 0
+  File::Temp: 0
+  IPC::Open3: 0
+  Test::Git: 0
+  Test::More: 0.88
+  Test::Script: 1.05
 configure_requires:
-  Module::Build: 0.38
-dynamic_config: 1
-generated_by: 'Module::Build version 0.38, CPAN::Meta::Converter version 2.112621'
+  ExtUtils::MakeMaker: 6.30
+dynamic_config: 0
+generated_by: 'Dist::Zilla version 4.300020, CPAN::Meta::Converter version 2.120921'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
   version: 1.4
 name: Git-FastExport
-provides:
-  Git::FastExport:
-    file: lib/Git/FastExport.pm
-    version: 0.08
-  Git::FastExport::Block:
-    file: lib/Git/FastExport/Block.pm
-    version: 0.07
-  Git::FastExport::Stitch:
-    file: lib/Git/FastExport/Stitch.pm
-    version: 0.07
 requires:
-  Git: 0.01
+  Carp: 0
+  Git::Repository: 0
+  List::Util: 0
+  Scalar::Util: 0
+  strict: 0
+  warnings: 0
 resources:
-  license: http://dev.perl.org/licenses/
-  repository: http://github.com/book/Git-FastExport
-version: 0.08
+  bugtracker: http://rt.cpan.org/NoAuth/Bugs.html?Dist=Git-FastExport
+  repository: http://github.com/book/Git-FastExport.git
+version: 0.09

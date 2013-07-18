@@ -1,12 +1,14 @@
 package Git::FastExport;
+{
+  $Git::FastExport::VERSION = '0.09';
+}
 use strict;
 use warnings;
 use Carp;
+use Scalar::Util qw( blessed );
 
-use Git;
+use Git::Repository;
 use Git::FastExport::Block;
-
-our $VERSION = '0.08';
 
 'progress 1 objects';
 
@@ -14,41 +16,40 @@ sub new {
     my ( $class, $repo ) = @_;
     my $self = bless { source => '' }, $class;
 
-    if ( defined $repo ) {
-        if ( !ref $repo ) {
-            my $dir = $repo;
-            $repo = eval { Git->repository( Directory => $dir ) }
-                or croak "$dir is not a valid git repository";
-        }
-        elsif ( !$repo->isa('Git') ) {
-            croak "$repo is not a Git object";
-        }
-        $self->{git} = $repo;
-    }
+    $self->{git} = blessed $repo && $repo->isa('Git::Repository')
+        ? $repo    # below, use "$repo" for Path::Class paths
+        : Git::Repository->new( defined $repo ? ( { cwd => "$repo" } ) : () );
+
     return $self;
 }
 
 sub fast_export {
     my ( $self, @args ) = @_;
     my $repo = $self->{git};
-    $self->{source} = $repo->wc_path || $repo->repo_path;
+    $self->{source} = $repo->work_tree || $repo->git_dir;
 
     # call the fast-export command (no default arguments)
-    ( $self->{export_fh}, $self->{ctx} )
-        = $repo->command_output_pipe( 'fast-export', @args );
+    $self->{command} = $repo->command( 'fast-export', @args );
+    $self->{export_fh} = $self->{command}->stdout;
 }
 
 sub next_block {
     my ($self) = @_;
-    my $block = bless {}, 'Git::FastExport::Block';
-    my $fh = $self->{export_fh};
 
+    my $fh = $self->{export_fh};
+    die "fast_export() must be called before next_block()" if !$fh;
+
+    # are we done?
     if ( eof $fh ) {
-        $self->{git}->command_close_pipe( $fh, $self->{ctx} )
-            if $self->{git} && $self->{ctx};
-        delete @{$self}{qw( export_fh ctx )};
+        if ( $self->{command} ) {
+            $self->{command}->close;
+            delete $self->{command};
+        }
+        delete $self->{export_fh};
         return;
     }
+
+    my $block = bless {}, 'Git::FastExport::Block';
 
     # use the header from last time, or read it (first time)
     $block->{header} = $self->{header} ||= <$fh>;
@@ -100,19 +101,29 @@ sub next_block {
     return $block;
 }
 
-__END__
+
+
+=pod
 
 =head1 NAME
 
 Git::FastExport - A module to parse the output of git-fast-export
 
+=head1 VERSION
+
+version 0.09
+
 =head1 SYNOPSIS
 
-    use Git;
+    use Git::Repository;
     use Git::FastExport;
 
-    my $repo = Git->repository( Repository => $path );
+    # get the object from a Git::Repository
+    my $repo = Git::Repository->new( work_tree => $path );
     my $export = Git::FastExport->new($repo);
+
+    # or simply from a path specification
+    my $export = Git::FastExport->new($path);
 
     while ( my $block = $export->next_block() ) {
 
@@ -122,8 +133,8 @@ Git::FastExport - A module to parse the output of git-fast-export
 
 =head1 DESCRIPTION
 
-C<Git::FastExport> is a module that parses the output of
-B<git-fast-export> and returns C<Git::FastExport::Block> objects that
+L<Git::FastExport> is a module that parses the output of
+B<git-fast-export> and returns L<Git::FastExport::Block> objects that
 can be inspected or modified before being eventually passed on as the
 input to B<git-fast-import>.
 
@@ -135,10 +146,9 @@ This class provides the following methods:
 
 =item new( [ $repository ] )
 
-The constructor takes an optional git directory (a string used
-as a parameter to C<< Git->repository( Directory => ... ) >>)
-or C<Git> repository object, and returns
-a C<Git::FastExport> object attached to it.
+The constructor takes an optional L<Git::Repository> object,
+or a path (to a C<GIT_DIR> or C<GIT_WORK_TREE>), and returns a
+L<Git::FastExport> object attached to it.
 
 =item fast_export( @args )
 
@@ -148,13 +158,13 @@ arguments given in C<@args>.
 =item next_block()
 
 Return the next block in the B<git-fast-export> stream as a
-C<Git::FastExport::Block> object.
+L<Git::FastExport::Block> object.
 
 Return nothing at the end of stream.
 
-This methods reads from the C<export_fh> filehandle of the C<Git::FastExport>
+This methods reads from the C<export_fh> filehandle of the L<Git::FastExport>
 object. It is normally setup via the C<fast_export()> method, but it is
-possible to read from STDIN by doing:
+possible to make it read directly from C<STDIN> (or another filehandle) by doing:
 
     $export->{export_fh} = \*STDIN;
     while ( my $block = $export->next_block() ) {
@@ -163,9 +173,19 @@ possible to read from STDIN by doing:
 
 =back
 
+=head1 BUGS
+
+Please report any bugs or feature requests on the bugtracker website
+http://rt.cpan.org/NoAuth/Bugs.html?Dist=Git-FastExport or by email to
+bug-git-fastexport@rt.cpan.org.
+
+When submitting a bug or request, please include a test-file or a
+patch to an existing test-file that illustrates the bug or desired
+feature.
+
 =head1 AUTHOR
 
-Philippe Bruhat (BooK), C<< <book@cpan.org> >>.
+Philippe Bruhat (BooK) <book@cpan.org>
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -175,7 +195,7 @@ under the same terms as Perl itself.
 
 =head1 COPYRIGHT
 
-Copyright 2008-2009 Philippe Bruhat (BooK), All Rights Reserved.
+Copyright 2008-2013 Philippe Bruhat (BooK), All Rights Reserved.
 
 =head1 LICENSE
 
@@ -183,4 +203,9 @@ This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
 
 =cut
+
+
+__END__
+
+# ABSTRACT: A module to parse the output of git-fast-export
 

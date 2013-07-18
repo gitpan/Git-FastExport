@@ -1,0 +1,133 @@
+do{ my $x = [
+       {
+         'ARGV' => []
+       },
+       {},
+       {
+         'verbose' => undef,
+         'dist_suffix' => undef,
+         'PL_files' => undef,
+         'pollute' => undef,
+         'metafile2' => 'META.json',
+         'bindoc_dirs' => [
+                            'blib/script'
+                          ],
+         'conflicts' => {},
+         'scripts' => undef,
+         'recommends' => {},
+         'pod_files' => undef,
+         'dist_version' => '0.08',
+         'config_dir' => '_build',
+         'sign' => undef,
+         'recurse_into' => [],
+         'build_bat' => 0,
+         'extra_linker_flags' => [],
+         'build_class' => 'Module::Build',
+         'prereq_action_types' => [
+                                    'requires',
+                                    'build_requires',
+                                    'test_requires',
+                                    'conflicts',
+                                    'recommends'
+                                  ],
+         'base_dir' => '/home/book/src/CPAN/Git-FastExport',
+         'allow_mb_mismatch' => 0,
+         'xs_files' => undef,
+         'destdir' => undef,
+         'metafile' => 'META.yml',
+         'mb_version' => '0.4005',
+         'use_tap_harness' => 0,
+         'test_file_exts' => [
+                               '.t'
+                             ],
+         'dist_name' => 'Git-FastExport',
+         'has_config_data' => undef,
+         'install_base' => '/home/book/perl5',
+         'module_name' => 'Git::FastExport',
+         'recursive_test_files' => undef,
+         'perl' => '/usr/bin/perl',
+         'libdoc_dirs' => [
+                            'blib/lib',
+                            'blib/arch'
+                          ],
+         'dist_author' => undef,
+         'bundle_inc' => [],
+         'use_rcfile' => 1,
+         'configure_requires' => {},
+         'pureperl_only' => 0,
+         'test_files' => undef,
+         'dist_abstract' => undef,
+         'create_readme' => undef,
+         'prefix_relpaths' => {},
+         'share_dir' => undef,
+         'meta_merge' => {
+                           'resources' => {
+                                            'repository' => 'http://github.com/book/Git-FastExport'
+                                          }
+                         },
+         'debug' => undef,
+         'get_options' => {},
+         'dist_version_from' => 'lib/Git/FastExport.pm',
+         '_added_to_INC' => [
+                              'lib',
+                              '/home/book/perl5/lib/perl5/i686-linux-gnu-thread-multi-64int',
+                              '/home/book/perl5/lib/perl5/x86_64-linux-gnu-thread-multi',
+                              '/home/book/perl5/lib/perl5',
+                              '/home/book/src/CPAN/Git-Repository/lib',
+                              '/home/book/src/CPAN/System-Command/lib'
+                            ],
+         'auto_configure_requires' => 1,
+         'create_license' => undef,
+         'debugger' => undef,
+         'html_css' => '',
+         'cpan_client' => 'cpan',
+         'mymetafile2' => 'MYMETA.json',
+         'bundle_inc_preload' => [],
+         'build_elements' => [
+                               'PL',
+                               'support',
+                               'pm',
+                               'xs',
+                               'share_dir',
+                               'pod',
+                               'script'
+                             ],
+         'release_status' => 'stable',
+         'needs_compiler' => '',
+         'orig_dir' => '/home/book/src/CPAN/Git-FastExport',
+         'include_dirs' => [],
+         'installdirs' => 'site',
+         'test_requires' => {},
+         'mymetafile' => 'MYMETA.yml',
+         'create_makefile_pl' => undef,
+         'magic_number' => undef,
+         'dynamic_config' => 1,
+         'tap_harness_args' => {},
+         'install_sets' => {},
+         'install_base_relpaths' => {},
+         'create_packlist' => 1,
+         'meta_add' => {},
+         'requires' => {
+                         'Git::Repository' => '1.15'
+                       },
+         'install_path' => {},
+         'pm_files' => undef,
+         'quiet' => undef,
+         'extra_compiler_flags' => [],
+         'script_files' => [
+                             'script/git-stitch-repo'
+                           ],
+         'build_script' => 'Build',
+         'original_prefix' => {},
+         'c_source' => undef,
+         'program_name' => undef,
+         'autosplit' => undef,
+         'license' => 'perl',
+         'build_requires' => {},
+         'allow_pureperl' => 0,
+         'config' => undef,
+         'blib' => 'blib',
+         'prefix' => undef
+       }
+     ];
+$x; }
