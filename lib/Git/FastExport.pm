@@ -1,6 +1,6 @@
 package Git::FastExport;
 {
-  $Git::FastExport::VERSION = '0.09';
+  $Git::FastExport::VERSION = '0.100';
 }
 use strict;
 use warnings;
@@ -111,7 +111,7 @@ Git::FastExport - A module to parse the output of git-fast-export
 
 =head1 VERSION
 
-version 0.09
+version 0.100
 
 =head1 SYNOPSIS
 

@@ -1,6 +1,6 @@
 package Git::FastExport::Stitch;
 {
-  $Git::FastExport::Stitch::VERSION = '0.09';
+  $Git::FastExport::Stitch::VERSION = '0.100';
 }
 
 use strict;
@@ -281,7 +281,7 @@ Git::FastExport::Stitch - Stitch together multiple git fast-export streams
 
 =head1 VERSION
 
-version 0.09
+version 0.100
 
 =head1 SYNOPSIS
 

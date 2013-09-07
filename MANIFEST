@@ -43,6 +43,7 @@ git-test/8/A/A
 git-test/8/B/B
 git-test/9/A/A
 git-test/9/B/B
+git-test/_/A/A
 lib/Git/FastExport.pm
 lib/Git/FastExport/Block.pm
 lib/Git/FastExport/Stitch.pm
@@ -55,7 +56,6 @@ t/10fast-export.t
 t/20stitch.t
 t/30stitch-repo.t
 t/Utils.pm
-t/compile.t
 t/fast-export
 t/release-distmeta.t
 t/release-pod-coverage.t

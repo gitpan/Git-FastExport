@@ -1,6 +1,6 @@
 package Git::FastExport::Block;
 {
-  $Git::FastExport::Block::VERSION = '0.09';
+  $Git::FastExport::Block::VERSION = '0.100';
 }
 
 use strict;
@@ -48,7 +48,7 @@ Git::FastExport::Block - A block in a fast-export stream
 
 =head1 VERSION
 
-version 0.09
+version 0.100
 
 =head1 SYNOPSIS
 

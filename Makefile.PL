@@ -17,7 +17,6 @@ my %WriteMakefileArgs = (
     "File::Path" => 0,
     "File::Spec" => 0,
     "File::Temp" => 0,
-    "IPC::Open3" => 0,
     "Test::Git" => 0,
     "Test::More" => "0.88",
     "Test::Script" => "1.05"
@@ -37,7 +36,7 @@ my %WriteMakefileArgs = (
     "strict" => 0,
     "warnings" => 0
   },
-  "VERSION" => "0.09",
+  "VERSION" => "0.100",
   "test" => {
     "TESTS" => "t/*.t"
   }

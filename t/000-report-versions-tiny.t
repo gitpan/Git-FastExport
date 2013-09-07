@@ -56,7 +56,6 @@ eval { $v .= pmver('File::Path','any version') };
 eval { $v .= pmver('File::Spec','any version') };
 eval { $v .= pmver('File::Temp','any version') };
 eval { $v .= pmver('Git::Repository','any version') };
-eval { $v .= pmver('IPC::Open3','any version') };
 eval { $v .= pmver('List::Util','any version') };
 eval { $v .= pmver('Scalar::Util','any version') };
 eval { $v .= pmver('Test::Git','any version') };
