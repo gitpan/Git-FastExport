@@ -1,7 +1,5 @@
 package Git::FastExport;
-{
-  $Git::FastExport::VERSION = '0.101';
-}
+$Git::FastExport::VERSION = '0.102';
 use strict;
 use warnings;
 use Carp;
@@ -9,8 +7,6 @@ use Scalar::Util qw( blessed );
 
 use Git::Repository;
 use Git::FastExport::Block;
-
-'progress 1 objects';
 
 sub new {
     my ( $class, $repo ) = @_;
@@ -101,6 +97,8 @@ sub next_block {
     return $block;
 }
 
+'progress 1 objects';
+
 
 
 =pod
@@ -111,7 +109,7 @@ Git::FastExport - A module to parse the output of git-fast-export
 
 =head1 VERSION
 
-version 0.101
+version 0.102
 
 =head1 SYNOPSIS
 

@@ -1,16 +1,11 @@
 package Git::FastExport::Stitch;
-{
-  $Git::FastExport::Stitch::VERSION = '0.101';
-}
-
+$Git::FastExport::Stitch::VERSION = '0.102';
 use strict;
 use warnings;
 use Carp;
 use Scalar::Util qw( blessed );
 use List::Util qw( first );
 use Git::FastExport;
-
-'progress 1 objects';
 
 sub new {
     my ( $class, $options, @args ) = @_;
@@ -139,9 +134,16 @@ sub next_block {
     # get the reference parent list used by _last_alien_child()
     my $parents = {};
     for my $parent (@parents) {
-        for my $repo ( keys %{ $commits->{$parent}{parents} } ) {
-            $parents->{$repo}{$_} = 1
-                for keys %{ $commits->{$parent}{parents}{$repo} };
+        if ( $commits->{$parent}{repo} eq $node->{repo} ) {
+            push @{ $parents->{ $node->{repo} } }, $parent;
+        }
+        else {    # record the parents from the other repositories
+            for my $repo ( grep $_ ne $node->{repo},
+                keys %{ $commits->{$parent}{parents} } )
+            {
+                push @{ $parents->{$repo} },
+                    @{ $commits->{$parent}{parents}{$repo} || [] };
+            }
         }
     }
 
@@ -156,7 +158,10 @@ sub next_block {
     }
 
     # update the parents information
-    $self->_add_parents( $node => map { $commits->{ $parent_map{$_} } } @parents );
+    for my $parent ( map { $commits->{ $parent_map{$_} } } @parents ) {
+        push @{ $parent->{children} }, $node->{name};
+        push @{ $node->{parents}{ $parent->{repo} } }, $parent->{name};
+    }
 
     # dump the commit
     return $commit;
@@ -202,23 +207,6 @@ sub _translate_block {
     }
 }
 
-# given a commit (item from $self->{commits})
-# add the parents from the given commits to it
-sub _add_parents {
-    my ( $self, $node, @parents ) = @_;
-
-    for my $parent (@parents) {
-        push @{ $parent->{children} }, $node->{name};
-        for my $repo_name ( keys %{ $parent->{parents} } ) {
-            $node->{parents}{$repo_name}{$_} = 1
-                for keys %{ $parent->{parents}{$repo_name} || {} };
-        }
-        $node->{parents}{ $parent->{repo} }{ $parent->{name} } = 1;
-    }
-
-    return $node;
-}
-
 # find the last child of this node
 # that has either no child
 # or a child in our repo
@@ -249,9 +237,11 @@ sub _last_alien_child {
 
             # parents of $peer in $peer's repo contains
             # all parents from $parent in $peer's repo
+            my %pparents;
+            @{pparents}{ @{ $peer->{parents}{ $peer->{repo} } || [] } } = ();
             next
-                if grep { !exists $peer->{parents}{ $peer->{repo} }{$_} }
-                    keys %{ $parents->{ $peer->{repo} } };
+                if grep !exists $pparents{$_},
+                @{ $parents->{ $peer->{repo} } };
 
             # this child node has a valid parent list
             push @valid, $id;
@@ -271,6 +261,8 @@ sub _last_alien_child {
     return $node;
 }
 
+'progress 1 objects';
+
 
 
 =pod
@@ -281,7 +273,7 @@ Git::FastExport::Stitch - Stitch together multiple git fast-export streams
 
 =head1 VERSION
 
-version 0.101
+version 0.102
 
 =head1 SYNOPSIS
 
@@ -525,11 +517,6 @@ to stitch together, this method "translates" the current block using
 the references (marks) of the resulting repository.
 
 To ease debugging, the translated mark count starts at C<1_000_000>.
-
-=item _add_parents( $node, @parents )
-
-Add the given parents to the node, and update the internal structure
-containing the node lineage.
 
 =item _last_alien_child( $node, $branch, $parents )
 

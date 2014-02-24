@@ -1,8 +1,5 @@
 package Git::FastExport::Block;
-{
-  $Git::FastExport::Block::VERSION = '0.101';
-}
-
+$Git::FastExport::Block::VERSION = '0.102';
 use strict;
 use warnings;
 
@@ -18,8 +15,6 @@ my %fields = (
     feature    => [],
     option     => [],
 );
-
-'progress 1 objects';
 
 sub as_string {
     my ($self) = @_;
@@ -38,6 +33,8 @@ sub as_string {
     return $string .= $self->{footer} || '';
 }
 
+'progress 1 objects';
+
 
 
 =pod
@@ -48,7 +45,7 @@ Git::FastExport::Block - A block in a fast-export stream
 
 =head1 VERSION
 
-version 0.101
+version 0.102
 
 =head1 SYNOPSIS
 
