@@ -17,13 +17,18 @@ my %WriteMakefileArgs = (
     "ExtUtils::MakeMaker" => "6.30"
   },
   "DISTNAME" => "Git-FastExport",
-  "EXE_FILES" => [],
+  "EXE_FILES" => [
+    "script/git-stitch-repo"
+  ],
   "LICENSE" => "perl",
   "NAME" => "Git::FastExport",
   "PREREQ_PM" => {
     "Carp" => 0,
+    "File::Spec::Functions" => 0,
+    "Getopt::Long" => 0,
     "Git::Repository" => 0,
     "List::Util" => 0,
+    "Pod::Usage" => 0,
     "Scalar::Util" => 0,
     "strict" => 0,
     "warnings" => 0
@@ -39,7 +44,7 @@ my %WriteMakefileArgs = (
     "Test::More" => "0.88",
     "Test::Script" => "1.05"
   },
-  "VERSION" => "0.102",
+  "VERSION" => "0.103",
   "test" => {
     "TESTS" => "t/*.t"
   }
@@ -51,11 +56,14 @@ my %FallbackPrereqs = (
   "Cwd" => 0,
   "File::Path" => 0,
   "File::Spec" => 0,
+  "File::Spec::Functions" => 0,
   "File::Temp" => 0,
+  "Getopt::Long" => 0,
   "Git::Repository" => 0,
   "IO::Handle" => 0,
   "IPC::Open3" => 0,
   "List::Util" => 0,
+  "Pod::Usage" => 0,
   "Scalar::Util" => 0,
   "Test::Git" => 0,
   "Test::More" => "0.88",

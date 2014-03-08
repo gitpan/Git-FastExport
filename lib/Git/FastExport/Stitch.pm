@@ -1,5 +1,5 @@
 package Git::FastExport::Stitch;
-$Git::FastExport::Stitch::VERSION = '0.102';
+$Git::FastExport::Stitch::VERSION = '0.103';
 use strict;
 use warnings;
 use Carp;
@@ -273,7 +273,7 @@ Git::FastExport::Stitch - Stitch together multiple git fast-export streams
 
 =head1 VERSION
 
-version 0.102
+version 0.103
 
 =head1 SYNOPSIS
 

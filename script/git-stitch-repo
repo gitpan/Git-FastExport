@@ -1,4 +1,5 @@
 #!/usr/bin/env perl
+# PODNAME: git-stitch-repo
 use strict;
 use warnings;
 use Pod::Usage;
@@ -33,24 +34,21 @@ while ( my $block = $export->next_block() ) {
     print $block->as_string;
 }
 
-__END__
+
+
+=pod
 
 =head1 NAME
 
 git-stitch-repo - Stitch several git repositories into a git-fast-import stream
 
+=head1 VERSION
+
+version 0.103
+
 =head1 SYNOPSIS
 
 git-stitch-repo [ options ] repo1 repo2:dir2 ...
-
-=head1 OPTIONS
-
-    --select < first | last | random >
-                 Algorithm for selection the attachment commit
-
-    --help       Print a short online help and exit
-    --manual     Print the full manual page and exit
-    --version    Print version information and exit
 
 =head1 DESCRIPTION
 
@@ -91,13 +89,32 @@ repositories, and produced the expected result.
 The improvements to the stitching algorithm added in version 0.06 should
 make is suitable to work with repositories having branches and merges.
 
+=head1 OPTIONS
+
+    --select < first | last | random >
+                 Algorithm for selection the attachment commit
+
+    --help       Print a short online help and exit
+    --manual     Print the full manual page and exit
+    --version    Print version information and exit
+
 =head1 SEE ALSO
 
 L<Git::FastExport::Stitch>
 
+=head1 BUGS
+
+Please report any bugs or feature requests on the bugtracker website
+http://rt.cpan.org/NoAuth/Bugs.html?Dist=Git-FastExport or by email to
+bug-git-fastexport@rt.cpan.org.
+
+When submitting a bug or request, please include a test-file or a
+patch to an existing test-file that illustrates the bug or desired
+feature.
+
 =head1 AUTHOR
 
-Philippe Bruhat (BooK), C<< <book@cpan.org> >>.
+Philippe Bruhat (BooK) <book@cpan.org>
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -115,4 +132,11 @@ This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
 
 =cut
+
+
+__END__
+
+
+# ABSTRACT: Stitch several git repositories into a git-fast-import stream
+
 
