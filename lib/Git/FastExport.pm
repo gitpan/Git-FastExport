@@ -1,5 +1,5 @@
 package Git::FastExport;
-$Git::FastExport::VERSION = '0.103';
+$Git::FastExport::VERSION = '0.104';
 use strict;
 use warnings;
 use Carp;
@@ -109,7 +109,7 @@ Git::FastExport - A module to parse the output of git-fast-export
 
 =head1 VERSION
 
-version 0.103
+version 0.104
 
 =head1 SYNOPSIS
 
@@ -193,7 +193,7 @@ under the same terms as Perl itself.
 
 =head1 COPYRIGHT
 
-Copyright 2008-2013 Philippe Bruhat (BooK), All Rights Reserved.
+Copyright 2008-2014 Philippe Bruhat (BooK), All Rights Reserved.
 
 =head1 LICENSE
 

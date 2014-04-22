@@ -1,5 +1,5 @@
 package Git::FastExport::Block;
-$Git::FastExport::Block::VERSION = '0.103';
+$Git::FastExport::Block::VERSION = '0.104';
 use strict;
 use warnings;
 
@@ -45,7 +45,7 @@ Git::FastExport::Block - A block in a fast-export stream
 
 =head1 VERSION
 
-version 0.103
+version 0.104
 
 =head1 SYNOPSIS
 
@@ -157,7 +157,7 @@ under the same terms as Perl itself.
 
 =head1 COPYRIGHT
 
-Copyright 2008-2013 Philippe Bruhat (BooK), All Rights Reserved.
+Copyright 2008-2014 Philippe Bruhat (BooK), All Rights Reserved.
 
 =head1 LICENSE
 

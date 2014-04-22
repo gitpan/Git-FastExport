@@ -16,12 +16,12 @@ my @tests = (
     # 0 - 3
     [ 'A1 A2-A1 A3-A2', 'master=A3', 'A1 A2-A1 A3-A2', 'A1 A2-A1 A3-A2', ],
     [   'A1 A2-A1 A3-A2 B1 B2-B1 B3-B2',
-        'master=A3 master=B3',
+        'master=A3 master=B3 tag>A2',
         'A1 A2-A1 A3-A2 B1-A3 B2-B1 B3-B2',
         'A1 A2-A1 A3-A2 B1-A3 B2-B1 B3-B2',
     ],
     [   'A1 B1 A2-A1 B2-B1 A3-A2 B3-B2',
-        'master=A3 master=B3',
+        'master=A3 master=B3 tag:msg>A2',
         'A1 B1-A1 A2-B1 B2-A2 A3-B2 B3-A3',
         'A1 B1-A1 A2-B1 B2-A2 A3-B2 B3-A3',
     ],
@@ -39,7 +39,7 @@ my @tests = (
         'A1 A2-A1 A3-A1 A4-A2A3',
     ],
     [   'A1 A2-A1 A3-A1 A4-A2A3 B1 B2-B1 B3-B1 B4-B2B3',
-        'master=A4 master=B4',
+        'master=A4 master=B4 v1>B1 v1>A1',
         'A1 A2-A1 A3-A1 A4-A2A3 B1-A4 B2-B1 B3-B1 B4-B2B3',
         'A1 A2-A1 A3-A1 A4-A2A3 B1-A4 B2-B1 B3-B1 B4-B2B3',
     ],
@@ -49,7 +49,7 @@ my @tests = (
         'A1 B1-A1 A2-B1 A3-B1 B2-A2 B3-A2 A4-B2A3 B4-A4B3',
     ],
     [   'A1 B1 A2-A1 B2-B1 A3-A1 B3-B1 A4-A2A3 B4-B2B3',
-        'master=A4 master=B4',
+        'master=A4 master=B4 v1:msg1>A2 v2:msg2>B3 v1>B2',
         'A1 B1-A1 A2-B1 B2-A2 A3-B1 B3-A2 A4-B3A3 B4-B2A4',
         'A1 B1-A1 A2-B1 B2-A2 A3-B1 B3-A2 A4-B2A3 B4-A4B3',
     ],
@@ -128,10 +128,12 @@ for my $n (@nums) {
     {
         my @refs;
         for my $ref ( split / /, $refs ) {
-            my ( $branch, $desc ) = split /=/, $ref;
-            next if !$desc;    # skip tags
-            my ($name) = $desc =~ /^([A-Z]+)/;
-            push @refs, "$branch-$name=$desc";
+            my ( $name, $type, $desc ) = split /([>=])/, $ref;
+            my ($orig) = $desc =~ /^([A-Z]+)/;
+            ( $name, my $msg ) = split /:/, $name;    # annotated tag?
+            push @refs, $msg
+                ? "$name-$orig:$msg$type$desc"
+                : "$name-$orig$type$desc";
         }
         $expected_refs = join ' ', sort @refs;
     }

@@ -84,9 +84,21 @@ sub repo_description {
             $repo->run( 'show-ref', '--tags' );
     };
 
+    # look for annotated tags
+    my %atag;
+    for my $tag ( keys %tag ) {
+        if ( my @tag = eval { $repo->run( 'cat-file', tag => $tag ) } ) {
+            my ($commit) = ( split / /, $tag[0] )[-1];    # tagged a commit
+            $atag{$tag} = [ $commit, $tag[-1] ];          # 1-line msg
+            delete $tag{$tag};
+        }
+    }
+
     # compute $refs
-    my $refs = join ' ', map( "$_=$log{$head{$_}}", sort keys %head ),
-        map( "$_>$log{$tag{$_}}", sort keys %tag );
+    my $refs = join ' ', sort
+        map( "$_=$log{$head{$_}}",                 keys %head ),
+        map( "$_:$atag{$_}[1]>$log{$atag{$_}[0]}", keys %atag ),
+        map( "$_>$log{$tag{$_}}",                  keys %tag );
 
     # replace SHA-1 by log name
     my $desc = join ' ', reverse @commits;
@@ -146,7 +158,8 @@ sub create_repos {
             $repo->run( branch => $name, $info->{sha1}{$commit} );
         }
         else {                   # tag
-            $repo->run( tag => $name, $info->{sha1}{$commit} );
+            ($name, my $msg) = split /:/, $name;
+            $repo->run( tag => ( '-m' => $msg )x!! $msg, $name, $info->{sha1}{$commit} );
         }
     }
 

@@ -44,7 +44,7 @@ git-stitch-repo - Stitch several git repositories into a git-fast-import stream
 
 =head1 VERSION
 
-version 0.103
+version 0.104
 
 =head1 SYNOPSIS
 

@@ -1,5 +1,5 @@
 package Git::FastExport::Stitch;
-$Git::FastExport::Stitch::VERSION = '0.103';
+$Git::FastExport::Stitch::VERSION = '0.104';
 use strict;
 use warnings;
 use Carp;
@@ -177,7 +177,7 @@ sub _translate_block {
 
     # mark our original source
     $block->{header} =~ s/$/-$self->{repo}{$repo}{name}/
-        if $block->{type} eq 'reset';
+        if $block->{type} =~ /^(?:reset|tag)$/;
 
     # map to the new mark
     for ( @{ $block->{mark} || [] } ) {
@@ -217,10 +217,8 @@ sub _last_alien_child {
 
     my $from = $node->{name};
     my $repo = $node->{repo};
-    my $old  = '';
 
-    while ( $node ne $old ) {
-        $old = $node;
+    while (1) {
 
         # no children nodes
         return $node if ( !@{ $node->{children} } );
@@ -273,7 +271,7 @@ Git::FastExport::Stitch - Stitch together multiple git fast-export streams
 
 =head1 VERSION
 
-version 0.103
+version 0.104
 
 =head1 SYNOPSIS
 
@@ -549,7 +547,7 @@ Philippe Bruhat (BooK) <book@cpan.org>
 
 =head1 COPYRIGHT
 
-Copyright 2008-2013 Philippe Bruhat (BooK), All Rights Reserved.
+Copyright 2008-2014 Philippe Bruhat (BooK), All Rights Reserved.
 
 =head1 LICENSE
 
