@@ -51,6 +51,7 @@ sub pmver {
 eval { $v .= pmver('Carp','any version') };
 eval { $v .= pmver('Cwd','any version') };
 eval { $v .= pmver('ExtUtils::MakeMaker','6.30') };
+eval { $v .= pmver('File::Basename','any version') };
 eval { $v .= pmver('File::Path','any version') };
 eval { $v .= pmver('File::Spec','any version') };
 eval { $v .= pmver('File::Spec::Functions','any version') };

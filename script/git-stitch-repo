@@ -6,6 +6,7 @@ use Pod::Usage;
 use Getopt::Long;
 use Git::FastExport::Stitch;
 use File::Spec::Functions qw( rel2abs );
+use File::Basename;
 
 our $VERSION = $Git::FastExport::Stitch::VERSION;
 
@@ -40,21 +41,21 @@ while ( my $block = $export->next_block() ) {
 
 =head1 NAME
 
-git-stitch-repo - Stitch several git repositories into a git-fast-import stream
+git-stitch-repo - Stitch several git repositories into a git fast-import stream
 
 =head1 VERSION
 
-version 0.104
+version 0.105
 
 =head1 SYNOPSIS
 
-git-stitch-repo [ options ] repo1 repo2:dir2 ...
+git-stitch-repo [ options ] repo1:dir1 repo2:dir2 ...
 
 =head1 DESCRIPTION
 
-B<git-stitch-repo> will process the output of C<git-fast-export --all
+B<git-stitch-repo> will process the output of C<git fast-export --all
 --date-order> on the git repositories given on the command-line,
-and create a stream suitable for B<git-fast-import> that will create
+and create a stream suitable for B<git fast-import> that will create
 a new repository containing all the commits in a new commit tree
 that respects the history of all the source repositories.
 
@@ -64,8 +65,8 @@ Typical usage is like this:
     A  B
     $ mkdir RESULT
     $ cd RESULT
-    $ git-init
-    $ git-stitch-repo ../A:A ../B:B | git-fast-import
+    $ git init
+    $ git-stitch-repo ../A:A ../B:B | git fast-import
 
 The C<RESULT> repository will contain all commits from repositories A
 and B, with the files from A in subdirectory F<A/> and the files from
@@ -137,6 +138,6 @@ under the same terms as Perl itself.
 __END__
 
 
-# ABSTRACT: Stitch several git repositories into a git-fast-import stream
+# ABSTRACT: Stitch several git repositories into a git fast-import stream
 
 

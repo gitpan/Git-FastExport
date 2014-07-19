@@ -1,10 +1,11 @@
 package Git::FastExport::Stitch;
-$Git::FastExport::Stitch::VERSION = '0.104';
+$Git::FastExport::Stitch::VERSION = '0.105';
 use strict;
 use warnings;
 use Carp;
 use Scalar::Util qw( blessed );
 use List::Util qw( first );
+use File::Basename qw( basename );
 use Git::FastExport;
 
 sub new {
@@ -18,7 +19,7 @@ sub new {
         mark_map => {},
         commits  => {},
         repo     => {},
-        name     => 'A',
+        name     => {},
         cache    => {},
 
         # default options
@@ -57,12 +58,25 @@ sub stitch {
     $repo = $export->{source};
     croak "Already stitching repository $repo" if exists $self->{repo}{$repo};
 
+    # pick the refs suffix:
+    # use basename without the .git extension or non ASCII characters
+    my $name = basename( $repo, '.git' );
+    $name =~ y/-A-Za-z0-9_/-/cs;
+    $name =~ s/^-|-$//g;
+    $dir ||= $name;    # pick up a default name for the directory
+
+    # check if the name is not used already and pick a replacement if it is
+    if ( exists $self->{name}{$name} ) {
+        my $suffix = "A";
+        $suffix++ while ( exists $self->{name}{"$name-$suffix"} );
+        $name .= "-$suffix";
+    }
+
     # set up the internal structures
-    $export->{mapdir}            = $dir;
     $self->{repo}{$repo}{repo}   = $repo;
     $self->{repo}{$repo}{dir}    = $dir;
     $self->{repo}{$repo}{parser} = $export;
-    $self->{repo}{$repo}{name}   = $self->{name}++;
+    $self->{repo}{$repo}{name}   = $name;
     $self->{repo}{$repo}{block}  = $export->next_block();
     $self->_translate_block( $repo );
 
@@ -94,7 +108,7 @@ sub next_block {
     # select the oldest available commit
     my ($next) = keys %$repo;
     $next
-        = $repo->{$next}{block}{date} < $repo->{$_}{block}{date} ? $next : $_
+        = $repo->{$next}{block}{committer_date} < $repo->{$_}{block}{committer_date} ? $next : $_
         for keys %$repo;
     my $commit = $repo->{$next}{block};
 
@@ -114,11 +128,11 @@ sub next_block {
     # update historical information
     my ($id) = $commit->{mark}[0] =~ /:(\d+)/g;
     $self->{last} = $id;    # last commit applied
-    my $branch = ( split / /, $commit->{header} )[1];
+    my $ref = ( split / /, $commit->{header} )[1];
     my $node = $commits->{$id} = {
         name     => $id,
         repo     => $repo->{repo},
-        branch   => $branch,
+        ref      => $ref,
         children => [],
         parents  => {},
         merge    => exists $commit->{merge},
@@ -149,7 +163,7 @@ sub next_block {
 
     # map each parent to its last "alien" commit
     my %parent_map = map {
-        $_ => $self->_last_alien_child( $commits->{$_}, $branch, $parents )->{name}
+        $_ => $self->_last_alien_child( $commits->{$_}, $ref, $parents )->{name}
     } @parents;
 
     # map parent marks
@@ -193,7 +207,8 @@ sub _translate_block {
     # update marks & dir in files
     for ( @{ $block->{files} } ) {
         s/^M (\d+) :(\d+)/M $1 :$mark_map->{$repo}{$2}/;
-        if ( my $dir = $self->{repo}{$repo}{dir} ) {
+        my $dir = $self->{repo}{$repo}{dir};
+        if ( defined $dir && $dir ne '' ) {
             s!^(M \d+ :\d+) (\"?)(.*)!$1 $2$dir/$3!;    # filemodify
             s!^D (\"?)(.*)!D $1$dir/$2!;                # filedelete
 
@@ -212,7 +227,7 @@ sub _translate_block {
 # or a child in our repo
 # or an alien child that has the same parent list
 sub _last_alien_child {
-    my ( $self, $node, $branch, $parents ) = @_;
+    my ( $self, $node, $ref, $parents ) = @_;
     my $commits = $self->{commits};
 
     my $from = $node->{name};
@@ -271,7 +286,7 @@ Git::FastExport::Stitch - Stitch together multiple git fast-export streams
 
 =head1 VERSION
 
-version 0.104
+version 0.105
 
 =head1 SYNOPSIS
 
@@ -297,18 +312,18 @@ L<Git::FastExport::Stich> is a module that "stitches" together several
 git fast-export streams. This module is the core of the B<git-stitch-repo>
 utility.
 
-L<Git::FastExport::Stitch> objects can be used as L<Git::FastExport>,
+Git::FastExport::Stitch objects can be used as L<Git::FastExport>,
 since they support the same inteface for the C<next_block()> method.
 
 =head1 METHODS
 
-L<Git::FastExport::Stitch> supports the following methods:
+Git::FastExport::Stitch supports the following methods:
 
-=over 4
+=head2 new
 
-=item new( \%options, [ ... ] )
+    my $export = Git::FastExport::Stitch->new( \%option );
 
-Create a new L<Git::FastExport::Stitch> object.
+Create a new Git::FastExport::Stitch object.
 
 The options hash defines options that will be used during the creation of the stitched repository.
 
@@ -321,7 +336,10 @@ See L<STITCHING ALGORITHM> for details about what these options really mean.
 The remaining parameters (if any) are taken to be parameters (passed by
 pairs) to the C<stitch()> method.
 
-=item stitch( $repo, $dir )
+=head2 stitch
+
+    # add the repository to the list of repositories to stitch
+    $export->stitch( $repo => $dir );
 
 Add the given C<$repo> to the list of repositories to stitch in.
 
@@ -333,20 +351,25 @@ The optional C<$dir> parameter will be used as the relative directory
 under which the trees of the source repository will be stored in the
 stitched repository.
 
-=item next_block()
+The basename of the C<$repo> repository (mapped to ASCII without the
+F<.git> suffix) is used as the internal name for C<$repo>. This internal
+name is used as a suffix on refs copied from C<$repo>. When there's a
+collision, an extra suffix (C<-A>, C<-B>, etc.) is added.
+
+=head2 next_block
+
+    my $block = $export->next_block();
 
 Return the next block of the stitched repository, as a
 L<Git::FastExport::Block> object.
 
 Return nothing at the end of stream.
 
-=back
-
 =head1 STITCHING ALGORITHM
 
 =head2 Commit attachment
 
-L<Git::FastExport::Stitch> processes the input commits in B<--date-order>
+Git::FastExport::Stitch processes the input commits in B<--date-order>
 fashion, and builds the new graph by attaching the new commit to another
 commit of the graph being constructed. It starts from the "original"
 parents of the node, and tries do follow the graph as far as possible.
@@ -403,7 +426,7 @@ directories F<A/> & F<B/> did live side-by-side all the time.
 
 Assuming additional timestamps not shown on the above graphs
 (the commit order is A1, B1, A2, B2, A3, A4, B3, B4, A5, B5, B6, B7, B8, A6),
-L<Git::FastExport::Stitch> will produce a B<git-fast-import> stream that will
+Git::FastExport::Stitch will produce a B<git-fast-import> stream that will
 create the following history, depending on the value of B<--select>:
 
 =over 4
@@ -463,7 +486,7 @@ Any mathematician will tell you there are many many ways to stitch two
 DAG together. This programs tries very hard not to create inconsistent
 history with regard to each input repository.
 
-The algorithm used by L<Git::FastExport::Stitch> enforces the following
+The algorithm used by Git::FastExport::Stitch enforces the following
 rules when building the resulting repository:
 
 =over 4
@@ -501,14 +524,14 @@ expected results.
 
 =head1 INTERNAL METHODS
 
-To run the stitching algorithm, L<Git::FastExport::Stitch> makes
+To run the stitching algorithm, Git::FastExport::Stitch makes
 use of several internal methods. These are B<not> part of the public
 interface of the module, and are detailed below for those interested in
 the algorithm itself.
 
-=over 4
+=head2 _translate_block
 
-=item _translate_block( $repo )
+    $self->_translate_block( $repo );
 
 Given a I<repo> key in the internal structure listing all the repositories
 to stitch together, this method "translates" the current block using
@@ -516,16 +539,16 @@ the references (marks) of the resulting repository.
 
 To ease debugging, the translated mark count starts at C<1_000_000>.
 
-=item _last_alien_child( $node, $branch, $parents )
+=head2 _last_alien_child
 
-Given a node, its "branch" name (actually, the reference given on the
+    my $commit = $self->_last_alien_child( $node, $ref, $parents )
+
+Given a node, its ref name (actually, the reference given on the
 C<commit> line of the fast-export) and a structure describing it's
 lineage over the various source repositories, find a suitable commit to
 which attach it.
 
 This method is the heart of the stitching algorithm.
-
-=back
 
 =head1 SEE ALSO
 

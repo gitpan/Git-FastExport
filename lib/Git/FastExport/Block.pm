@@ -1,5 +1,5 @@
 package Git::FastExport::Block;
-$Git::FastExport::Block::VERSION = '0.104';
+$Git::FastExport::Block::VERSION = '0.105';
 use strict;
 use warnings;
 
@@ -45,7 +45,7 @@ Git::FastExport::Block - A block in a fast-export stream
 
 =head1 VERSION
 
-version 0.104
+version 0.105
 
 =head1 SYNOPSIS
 
@@ -53,12 +53,12 @@ This package is used internally by L<Git::FastExport>.
 
 =head1 DESCRIPTION
 
-L<Git::FastExport::Block> represents blocks from a B<git fast-export>
+Git::FastExport::Block represents blocks from a B<git fast-export>
 stream.
 
 Internally, it is a simple hash with keys pointing either to a string
 or a reference to an array of strings, which makes it very
-easing to edit (when obtained via L<Git::FastExport> C<next_block()>
+easy to edit (when obtained via L<Git::FastExport> C<next_block()>
 method) or create blocks in a B<git fast-export> stream.
 
 The following two keys are pointing to strings:
@@ -117,23 +117,21 @@ tagger
 Of course, which keys are present depend on the type of the block,
 which is conveniently stored in the C<type> key.
 
-All other keys are ignored.
+All other keys are ignored by C<L</as_string>>.
 
 =head1 METHODS
 
-A L<Git::FastExport::Block> structure is meant to be used as a hash,
+A Git::FastExport::Block structure is meant to be used as a hash,
 and is not protected by an accessor/mutator interface.
 Or a constructor.
 
 However, the module provides a method for outputing blocks:
 
-=over 4
+=head2 as_string
 
-=item as_string()
+     print $block->as_string;
 
 Return the block as a string suitable for B<git fast-import>.
-
-=back
 
 =head1 BUGS
 

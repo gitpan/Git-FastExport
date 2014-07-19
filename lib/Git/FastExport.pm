@@ -1,5 +1,5 @@
 package Git::FastExport;
-$Git::FastExport::VERSION = '0.104';
+$Git::FastExport::VERSION = '0.105';
 use strict;
 use warnings;
 use Carp;
@@ -15,6 +15,15 @@ sub new {
     $self->{git} = blessed $repo && $repo->isa('Git::Repository')
         ? $repo    # below, use "$repo" for Path::Class paths
         : Git::Repository->new( defined $repo ? ( { cwd => "$repo" } ) : () );
+
+    # git fast-export appeared in git 1.5.4
+    if ( $self->{git}->version_lt('1.5.4') ) {
+        my $opt = $self->{git}->options->{git};
+        my ($git) = $opt
+            ? ref $opt ? "@$opt" : $opt
+            : $self->{git}->command("version")->cmdline;
+        croak "Git version 1.5.4 required for git fast-export. '$git' is only version ${\$self->{git}->version}";
+    }
 
     return $self;
 }
@@ -90,8 +99,10 @@ sub next_block {
 
     # post-processing
     if ( $block->{type} eq 'commit' ) {
-        ( $block->{date} )
+        ( $block->{committer_date} )
             = $block->{committer}[0] =~ /^committer [^>]*> (\d+) [-+]\d+$/g;
+        ( $block->{author_date} )
+            = $block->{author}[0] =~ /^author [^>]*> (\d+) [-+]\d+$/g;
     }
 
     return $block;
@@ -109,7 +120,7 @@ Git::FastExport - A module to parse the output of git-fast-export
 
 =head1 VERSION
 
-version 0.104
+version 0.105
 
 =head1 SYNOPSIS
 
@@ -131,7 +142,7 @@ version 0.104
 
 =head1 DESCRIPTION
 
-L<Git::FastExport> is a module that parses the output of
+Git::FastExport is a module that parses the output of
 B<git-fast-export> and returns L<Git::FastExport::Block> objects that
 can be inspected or modified before being eventually passed on as the
 input to B<git-fast-import>.
@@ -140,27 +151,32 @@ input to B<git-fast-import>.
 
 This class provides the following methods:
 
-=over 4
+=head2 new
 
-=item new( [ $repository ] )
+    my $export = Git::FastExport->new($repo);
 
 The constructor takes an optional L<Git::Repository> object,
 or a path (to a C<GIT_DIR> or C<GIT_WORK_TREE>), and returns a
-L<Git::FastExport> object attached to it.
+Git::FastExport object attached to it.
 
-=item fast_export( @args )
+=head2 fast_export
+
+    # example @args: qw< --progress=1 --all --date-order >
+    $export->fast_export(@args);
 
 Initialize a B<git-fast-export> command on the repository, using the
 arguments given in C<@args>.
 
-=item next_block()
+=head2 next_block
+
+    my $block = $export->next_block();
 
 Return the next block in the B<git-fast-export> stream as a
 L<Git::FastExport::Block> object.
 
 Return nothing at the end of stream.
 
-This methods reads from the C<export_fh> filehandle of the L<Git::FastExport>
+This methods reads from the C<export_fh> filehandle of the Git::FastExport
 object. It is normally setup via the C<fast_export()> method, but it is
 possible to make it read directly from C<STDIN> (or another filehandle) by doing:
 
@@ -168,8 +184,6 @@ possible to make it read directly from C<STDIN> (or another filehandle) by doing
     while ( my $block = $export->next_block() ) {
         ...
     }
-
-=back
 
 =head1 BUGS
 
